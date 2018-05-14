@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="board">
+
+	<update id="updateHit" parameterType="long">
+		<![CDATA[
+		update board
+		   set hit = hit + 1
+		 where no = #{no }		
+		]]>	
+	</update>
+
+	<update id="update" parameterType="boardvo">
+		<![CDATA[
+		update board 
+		   set title=#{title },
+		       content=#{content }
+		 where no=#{no }
+		   and member_no=#{userNo }		
+		]]>	
+	</update>
+
+	<update id="increaseGroupNo" parameterType="map">
+		<![CDATA[
+		update board
+		   set o_no = o_no + 1
+		 where g_no = #{groupNo }
+		   and o_no > #{orderNo }		
+		]]>	
+	</update>
+
+	<delete id="delete" parameterType="boardvo">
+		<![CDATA[
+		delete
+		  from board
+		 where no = #{no }
+		   and member_no = #{userNo }		
+		]]>	
+	</delete>
+	
+	<select id="getByNo" parameterType="long" resultType="boardvo">
+		<![CDATA[
+		select	no,
+				title,
+				content,
+				g_no as groupNo,
+				o_no as orderNo,
+				depth,
+				member_no as userNo
+		   from board
+		  where no = #{no }		
+		]]>		
+	</select>
+	
+	<insert id="insert" parameterType="boardvo">
+		<choose>
+			<when test="groupNo == null">
+				<![CDATA[
+				insert
+		  		into board
+				values (seq_board.nextval, 
+						#{title },
+						#{content }, 
+						sysdate, 
+						0,
+						nvl((select max(g_no) from board),0) + 1,
+						1, 
+						1, 
+						#{userNo })
+				]]>	
+			</when>
+			<otherwise>
+				<![CDATA[
+				insert
+		  		into board
+				values (seq_board.nextval,
+				        #{title },
+				        #{content },
+				        sysdate,
+				        0,
+				        #{groupNo },
+				        #{orderNo },
+				        #{depth },
+				        #{userNo })
+				]]>	
+			</otherwise>
+		</choose>
+	</insert>
+	
+	<select id="getTotalCount" parameterType="string" resultType="int">
+		<![CDATA[
+		select count(*)
+		  from board
+		]]>		  
+		<if test="_parameter != null and _parameter !=''">
+			<![CDATA[
+			where title like '%${_parameter }%'
+			   or content like '%${_parameter }%'
+			]]>	
+		</if>	  
+	</select>
+	
+	<select id="getList" parameterType="map" resultType="boardvo">
+		<choose>
+			<when test="keyword != null and keyword !=''">
+				<![CDATA[
+				select *
+				  from ( select no,
+				  				title,
+				  				hit,
+				  				reg_date as regDate,
+				  				depth,
+				  				name as userName,
+				  				member_no as userNo,
+				  				rownum as rn
+						   from (  select a.no,
+						   				  a.title,
+						   				  a.hit,
+						   				  to_char(a.reg_date, 'yyyy-mm-dd hh24:mi:ss') as reg_date,
+						   				  a.depth,
+						   				  b.name,
+						   				  a.member_no
+									 from board a,
+									 	  member b
+									where a.member_no = b.no
+									  and ( a.title like '%${keyword }%' or a.content like '%${keyword }%' )
+								 order by g_no desc, o_no asc ) )
+			     where (#{page }-1)*#{size }+1 <= rn and rn <= #{page }*#{size }
+				]]>	
+			</when>
+			<otherwise>
+				<![CDATA[
+				select *
+				  from ( select no,
+				  				title,
+				  				hit,
+				  				reg_date as regDate,
+				  				depth,
+				  				name as userName,
+				  				member_no as userNo,
+				  				rownum as rn
+						   from (  select a.no,
+						   				  a.title,
+						   				  a.hit,
+						   				  to_char(a.reg_date, 'yyyy-mm-dd hh24:mi:ss') as reg_date,
+						   				  a.depth,
+						   				  b.name,
+						   				  a.member_no
+									 from board a,
+									 	  member b
+									where a.member_no = b.no
+								 order by g_no desc, o_no asc ) )
+			     where (#{page }-1)*#{size }+1 <= rn and rn <= #{page }*#{size }
+				]]>				
+			</otherwise>
+		</choose>
+	</select>
+</mapper>
